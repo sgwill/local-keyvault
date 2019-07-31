@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace LocalKeyVault
@@ -14,6 +15,7 @@ namespace LocalKeyVault
     {
         private readonly RequestDelegate _next;
         private readonly IConfiguration _config;
+        private readonly Regex rgxKey = new Regex(@"\/secrets\/([\w\d-]+)\/?([\w\d-]*)");
 
         public LocalKeyVaultMiddleware(RequestDelegate next, IConfiguration config)
         {
@@ -23,9 +25,9 @@ namespace LocalKeyVault
 
         public async Task Invoke(HttpContext context)
         {
-            if (context.Request.Path.HasValue && context.Request.Path.Value.Contains("/secrets"))
+            if (context.Request.Path.HasValue && rgxKey.IsMatch(context.Request.Path))
             {
-                string key = context.Request.Path.Value.Replace("/", "").Replace("secrets", "");
+                var key = rgxKey.Match(context.Request.Path).Groups[1].Value;
                 if (!string.IsNullOrEmpty(_config.GetValue<string>($"KeyVaultValues:{key}")))
                 {
                     var bundle = new SecretBundle(value: _config.GetValue<string>($"KeyVaultValues:{key}"));
